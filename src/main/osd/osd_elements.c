@@ -1262,6 +1262,38 @@ static void osdElementEfficiency(osdElementParms_t *element)
         tfp_sprintf(element->buff, "----%c/%c", SYM_MAH, unitSymbol);
     }
 }
+
+static void osdElementRthBatteryReserve(osdElementParms_t *element)
+{
+    if (batteryConfig()->batteryCapacity == 0
+        || !STATE(GPS_FIX) || !STATE(GPS_FIX_HOME)
+        || GPS_distanceFlownInCm < 500) {
+        tfp_sprintf(element->buff, "%c--", SYM_HOMEFLAG);
+        return;
+    }
+
+    const int32_t mAhDrawn = getMAhDrawn();
+    if (mAhDrawn <= 0) {
+        tfp_sprintf(element->buff, "%c--", SYM_HOMEFLAG);
+        return;
+    }
+
+    const int32_t capacity   = (int32_t)batteryConfig()->batteryCapacity;
+    const int32_t distHomeCm = (int32_t)GPS_distanceToHomeCm;
+    // int64 to avoid overflow: 10000 mAh * 5,000,000 cm = 5e10
+    const int32_t mAhForRth  = (int32_t)(((int64_t)mAhDrawn * distHomeCm) / (int32_t)GPS_distanceFlownInCm);
+    const int32_t percentAfterRth = ((capacity - mAhDrawn - mAhForRth) * 100) / capacity;
+
+    if (percentAfterRth <= 0) {
+        element->attr = DISPLAYPORT_SEVERITY_CRITICAL;
+        tfp_sprintf(element->buff, "%cCRT%3d%%", SYM_HOMEFLAG, 0);
+    } else if (percentAfterRth <= osdConfig()->rthBattWarnPercent) {
+        element->attr = DISPLAYPORT_SEVERITY_WARNING;
+        tfp_sprintf(element->buff, "%cWRN%3d%%", SYM_HOMEFLAG, (int)percentAfterRth);
+    } else {
+        tfp_sprintf(element->buff, "%c OK%3d%%", SYM_HOMEFLAG, (int)constrain(percentAfterRth, 0, 99));
+    }
+}
 #endif // USE_GPS
 
 #ifdef USE_GPS_LAP_TIMER
@@ -2070,6 +2102,7 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_RC_CHANNELS]             = osdElementRcChannels,
 #ifdef USE_GPS
     [OSD_EFFICIENCY]              = osdElementEfficiency,
+    [OSD_RTH_BATTERY_RESERVE]     = osdElementRthBatteryReserve,
 #endif
 #ifdef USE_GPS_LAP_TIMER
     [OSD_GPS_LAP_TIME_CURRENT]    = osdElementGpsLapTimeCurrent,
@@ -2148,6 +2181,7 @@ void osdAddActiveElements(void)
         osdAddActiveElement(OSD_HOME_DIR);
         osdAddActiveElement(OSD_FLIGHT_DIST);
         osdAddActiveElement(OSD_EFFICIENCY);
+        osdAddActiveElement(OSD_RTH_BATTERY_RESERVE);
     }
 #endif // GPS
 

@@ -195,6 +195,7 @@ typedef enum {
     OSD_CUSTOM_MSG2,
     OSD_CUSTOM_MSG3,
     OSD_LIDAR_DIST,
+    OSD_RTH_BATTERY_RESERVE,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
@@ -317,6 +318,7 @@ typedef struct osdConfig_s {
     uint16_t cap_alarm;
     uint16_t alt_alarm;
     uint8_t rssi_alarm;
+    uint8_t rthBattWarnPercent;   // % reserve after RTH to trigger WARNING (default 10)
 
     uint8_t units;
 
